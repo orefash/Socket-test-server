@@ -4,6 +4,9 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors")
 
+
+const { getDb } = require("./db/conn.js");
+
 app.use(cors());
 app.use(express.json());
 
@@ -59,9 +62,9 @@ console.log(`User connected: ${socket.id}`)
         console.log("On disconnect Users: ", cMap)
     });
 
-    socket.on("join_room", (data) => {
-        socket.join(data)
-    })
+    // socket.on("join_room", (data) => {
+    //     socket.join(data)
+    // })
 
     socket.on("send_message", (data) => {
         // console.log(`recevied: ${JSON.stringify(data)}`)
@@ -83,6 +86,61 @@ app.post('/message', (req, res) => {
     res.status(400);
 });
 
+
+
+app.post('/get-user', (req, res) => {
+    // messages.push(req.body);
+    console.log("in get user: ", req.body)
+    let userDets = req.body.userDets;
+    try {
+        let dt = userDets.split('-', 2);
+        console.log("DT: ", dt)
+        let user = dt[0], key = dt[1];
+
+        if(user){
+            var uj = uMap.get(user);
+            var uobj = {...uj, user, key}
+            console.log("user fetch: ", uobj)
+           
+        }
+
+
+
+        res.status(200).json(uobj);
+    } catch (error) {
+        console.error("error: ", error.message)
+    }
+    res.status(400);
+});
+
+
+
+app.post('/update-data', (req, res) => {
+    // messages.push(req.body);
+    console.log("in update user: ", req.body)
+    let user = req.body.user, name = req.body.name,  age = req.body.age, text = req.body.text;
+    try {
+       
+        if(user){
+            var uj = uMap.get(user);
+            uj.name = name
+            uj.age = age
+            uj.text = text
+            uMap.set(user, uj)
+            console.log("user updated: ", uMap)
+            io.emit('update_data', {
+                ...uj, user
+            });  
+            res.status(200).json({...uj, user});
+        }else{
+            throw("user not found")
+        }
+
+    } catch (error) {
+        console.error("error: ", error.message)
+    }
+    res.status(400);
+});
 
 app.post('/login', (req, res) => {
     // messages.push(req.body);
@@ -115,17 +173,10 @@ app.post('/validate-key', (req, res) => {
             valid = true;
             // console.log("User name: ", username) 
             cMap.set(key, value)
-            // console.log("Updated: ", cMap)
-            // console.log("user obj: ", uMap)
-            // console.log("user req: ", req.body.user)
-            if(uMap.get(req.body.user)){
-                var uj = uMap.get(req.body.user);
-                var uobj = {...uj, username, key}
-                console.log("user connect: ", uobj)
-                io.emit('screen_conn', {
-                    uobj
-                });
-            }
+
+            io.emit('screen_conn', {
+                user: value.user, key: value.id
+            });            
             
             break;
         }
@@ -136,16 +187,6 @@ app.post('/validate-key', (req, res) => {
         res.status(200).json({user});
     }
 
-      
-      
-    // const udata = cMap.get(req.body.sid);
-    // if (udata) {
-        
-    //     io.emit('new_key', udata);
-    //     res.status(200).json({message: "connected"});
-    // }
-    
-    // io.emit('new_key', "keyvalue");
     res.status(400);
 });
 
